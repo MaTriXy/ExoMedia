@@ -1,33 +1,38 @@
 apply plugin: 'com.android.library'
 apply plugin: 'maven'
-apply plugin: 'bintray-release'
+apply plugin: 'com.novoda.bintray-release'
 
-def versionMajor = 3
+def versionMajor = 4
 def versionMinor = 0
-def versionPatch = 1
+def versionPatch = 2
 
 def libraryGroupId = 'com.devbrackets.android'
 def libraryBaseName = 'exomedia'
-def libraryVersion = "${versionMajor}.${versionMinor}.${versionPatch}" // release version
+def libraryVersion = "${versionMajor}.${versionMinor}.${versionPatch}"
 
 dependencies {
     // Android
-    compile 'com.android.support:appcompat-v7:24.0.0' // includes support-v4
+    compile 'com.android.support:appcompat-v7:25.3.1'
 
     // ExoPlayer
-    compile 'com.google.android.exoplayer:exoplayer:r1.5.9'
+    compile 'com.google.android.exoplayer:exoplayer-core:r2.4.0'
+    compile 'com.google.android.exoplayer:exoplayer-dash:r2.4.0'
+    compile 'com.google.android.exoplayer:exoplayer-hls:r2.4.0'
+    compile 'com.google.android.exoplayer:exoplayer-smoothstreaming:r2.4.0'
 }
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion '23.0.3'
+    compileSdkVersion 25
+    buildToolsVersion '25.0.2'
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 24
+        targetSdkVersion 25
 
         versionCode versionMajor * 10000 + versionMinor * 1000 + versionPatch * 100
         versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+
+        vectorDrawables.useSupportLibrary = true
     }
 
     compileOptions {

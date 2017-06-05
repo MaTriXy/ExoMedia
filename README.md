@@ -1,5 +1,6 @@
 ExoMedia
 ============
+[//]: # (SEO terms: Simple ExoPlayer, ExoPlayer TextureView, ExoPlayer SurfaceView, ExoPlayer VideoView, ExoPlayer Audio)
 ExoMedia is a media playback library with similar APIs to the Android MediaPlayer
 and VideoView that uses the [ExoPlayer][ExoPlayer] as a backing when possible, 
 otherwise the default Android MediaPlayer and VideoView are used.
@@ -20,29 +21,29 @@ Or included in your gradle dependencies
 
 ```gradle
 repositories {
-    jcenter();
+    jcenter()
 }
 
 dependencies {
-    compile 'com.devbrackets.android:exomedia:3.0.1'
+    compile 'com.devbrackets.android:exomedia:4.0.2'
 }
 ```
 
 Example
 -------
-The EMVideoView (EM for ExoMedia) can be added in your layout files like any other Android view.
+The ExoMedia VideoView can be added in your layout files like any other Android view.
 
 ```xml
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:EMVideoView="http://schemas.android.com/apk/res-auto"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-	<com.devbrackets.android.exomedia.ui.widget.EMVideoView
+	<com.devbrackets.android.exomedia.ui.widget.VideoView
 		android:id="@+id/video_view"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
-		EMVideoView:useDefaultControls="true"/>
+		app:useDefaultControls="true"/>
 		
 </RelativeLayout>
 ```
@@ -50,27 +51,28 @@ The EMVideoView (EM for ExoMedia) can be added in your layout files like any oth
 While in your Activity or Fragment you treat it like a standard Android VideoView
 
 ```java
-private void setupVideoView() {
-	EMVideoView emVideoView = (EMVideoView)findViewById(R.id.video_view);
-	emVideoView.setOnPreparedListener(this);
+private VideoView videoView;
 
-    //For now we just picked an arbitrary item to play.  More can be found at
-    //https://archive.org/details/more_animation
-    emVideoView.setVideoURI(Uri.parse("https://archive.org/download/Popeye_forPresident/Popeye_forPresident_512kb.mp4"));
+private void setupVideoView() {
+	// Make sure to use the correct VideoView import
+	videoView = (VideoView)findViewById(R.id.video_view);
+	videoView.setOnPreparedListener(this);
+
+    //For now we just picked an arbitrary item to play
+    videoView.setVideoURI(Uri.parse("https://archive.org/download/Popeye_forPresident/Popeye_forPresident_512kb.mp4"));
 }
 
 @Override
 public void onPrepared() {
 	//Starts the video playback as soon as it is ready
-	emVideoView.start();
+	videoView.start();
 }
 ```
 
 
 License
 -------
-
-    Copyright 2016 Brian Wernick
+    Copyright 2015-2017 Brian Wernick
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -89,13 +91,12 @@ Attribution
 -----------
 * Uses [AppCompat-v7](http://developer.android.com/tools/support-library/features.html#v7-appcompat) licensed under [Apache 2.0][Apache 2.0]
 * Uses [ExoPlayer][ExoPlayer] licensed under [Apache 2.0][Apache 2.0]
-* Uses [Material Design icons][Design Icons] licensed under [Creative Commons 4.0][CC 4.0]  
+* Uses [Material Design icons][Design Icons] licensed under [Apache 2.0][Apache 2.0]
 
  [Apache 2.0]: http://www.apache.org/licenses/LICENSE-2.0
- [CC 4.0]: http://creativecommons.org/licenses/by/4.0/
  [CTS]: https://source.android.com/compatibility/cts/index.html
  [Design Icons]: https://github.com/google/material-design-icons
  [ExoPlayer]: https://github.com/google/ExoPlayer
- [Java Docs]: https://devbrackets.com/dev/libs/docs/exomedia/3.0.0/index.html
+ [Java Docs]: https://devbrackets.com/dev/libs/docs/exomedia/4.0.0/index.html
  [JCenter]: https://bintray.com/brianwernick/maven/ExoMedia/view#files
  [Website]: https://devbrackets.com/dev/libs/exomedia.html

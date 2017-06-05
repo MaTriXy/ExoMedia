@@ -21,12 +21,12 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Handler;
-import android.support.annotation.DrawableRes;
 import android.support.annotation.IntRange;
 import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.SparseBooleanArray;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -38,42 +38,39 @@ import com.devbrackets.android.exomedia.R;
 import com.devbrackets.android.exomedia.listener.VideoControlsButtonListener;
 import com.devbrackets.android.exomedia.listener.VideoControlsSeekListener;
 import com.devbrackets.android.exomedia.listener.VideoControlsVisibilityListener;
-import com.devbrackets.android.exomedia.util.EMResourceUtil;
 import com.devbrackets.android.exomedia.util.Repeater;
+import com.devbrackets.android.exomedia.util.ResourceUtil;
 
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * This is a simple abstraction for the EMVideoView to have a single "View" to add
+ * This is a simple abstraction for the {@link VideoView} to have a single "View" to add
  * or remove for the Default Video Controls.
  */
 @SuppressWarnings("unused")
 public abstract class VideoControls extends RelativeLayout {
-    public static final int DEFAULT_CONTROL_HIDE_DELAY = 2000;
+    public static final int DEFAULT_CONTROL_HIDE_DELAY = 2_000;
     protected static final long CONTROL_VISIBILITY_ANIMATION_LENGTH = 300;
-    protected static final int INVALID_RESOURCE_ID = 0;
 
-    protected TextView currentTime;
-    protected TextView endTime;
+    protected TextView currentTimeTextView;
+    protected TextView endTimeTextView;
 
-    protected TextView titleView;
-    protected TextView subTitleView;
-    protected TextView descriptionView;
+    protected TextView titleTextView;
+    protected TextView subTitleTextView;
+    protected TextView descriptionTextView;
 
     protected ImageButton playPauseButton;
     protected ImageButton previousButton;
     protected ImageButton nextButton;
 
-    protected ProgressBar loadingProgress;
+    protected ProgressBar loadingProgressBar;
 
     protected ViewGroup controlsContainer;
     protected ViewGroup textContainer;
 
-    protected Drawable defaultPlayDrawable;
-    protected Drawable defaultPauseDrawable;
-    protected Drawable defaultPreviousDrawable;
-    protected Drawable defaultNextDrawable;
+    protected Drawable playDrawable;
+    protected Drawable pauseDrawable;
 
     @NonNull
     protected Handler visibilityHandler = new Handler();
@@ -81,7 +78,7 @@ public abstract class VideoControls extends RelativeLayout {
     protected Repeater progressPollRepeater = new Repeater();
 
     @Nullable
-    protected EMVideoView videoView;
+    protected VideoView videoView;
 
     @Nullable
     protected VideoControlsSeekListener seekListener;
@@ -93,11 +90,10 @@ public abstract class VideoControls extends RelativeLayout {
     @NonNull
     protected InternalListener internalListener = new InternalListener();
 
-    //Since the Play/Pause button uses 2 separate resource Id's we need to store them
-    protected int playResourceId = INVALID_RESOURCE_ID;
-    protected int pauseResourceId = INVALID_RESOURCE_ID;
+    @NonNull
+    protected SparseBooleanArray enabledViews = new SparseBooleanArray();
 
-    protected long hideDelay = -1;
+    protected long hideDelay = DEFAULT_CONTROL_HIDE_DELAY;
 
     protected boolean isLoading = false;
     protected boolean isVisible = true;
@@ -182,14 +178,39 @@ public abstract class VideoControls extends RelativeLayout {
         setup(context);
     }
 
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+
+        //A poll used to periodically update the progress bar
+        progressPollRepeater.setRepeatListener(new Repeater.RepeatListener() {
+            @Override
+            public void onRepeat() {
+                updateProgress();
+            }
+        });
+
+        if (videoView != null && videoView.isPlaying()) {
+            updatePlaybackState(true);
+        }
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+
+        progressPollRepeater.stop();
+        progressPollRepeater.setRepeatListener(null);
+    }
+
     /**
      * Sets the parent view to use for determining playback length, position,
      * state, etc.  This should only be called once, during the setup process
      *
-     * @param EMVideoView The Parent view to these controls
+     * @param VideoView The Parent view to these controls
      */
-    public void setVideoView(@Nullable EMVideoView EMVideoView) {
-        this.videoView = EMVideoView;
+    public void setVideoView(@Nullable VideoView VideoView) {
+        this.videoView = VideoView;
     }
 
     /**
@@ -227,12 +248,11 @@ public abstract class VideoControls extends RelativeLayout {
      */
     public void updatePlaybackState(boolean isPlaying) {
         updatePlayPauseImage(isPlaying);
+        progressPollRepeater.start();
 
         if (isPlaying) {
-            progressPollRepeater.start();
-            hideDelayed(DEFAULT_CONTROL_HIDE_DELAY);
+            hideDelayed();
         } else {
-            progressPollRepeater.stop();
             show();
         }
     }
@@ -243,7 +263,7 @@ public abstract class VideoControls extends RelativeLayout {
      * @param title The title to display
      */
     public void setTitle(@Nullable CharSequence title) {
-        titleView.setText(title);
+        titleTextView.setText(title);
         updateTextContainerVisibility();
     }
 
@@ -254,7 +274,7 @@ public abstract class VideoControls extends RelativeLayout {
      * @param subTitle The sub title to display
      */
     public void setSubTitle(@Nullable CharSequence subTitle) {
-        subTitleView.setText(subTitle);
+        subTitleTextView.setText(subTitle);
         updateTextContainerVisibility();
     }
 
@@ -266,67 +286,57 @@ public abstract class VideoControls extends RelativeLayout {
      * @param description The artist to display
      */
     public void setDescription(@Nullable CharSequence description) {
-        descriptionView.setText(description);
+        descriptionTextView.setText(description);
         updateTextContainerVisibility();
     }
 
     /**
-     * Sets the resource id's to use for the PlayPause button.
+     * Sets the drawables to use for the PlayPause button
      *
-     * @param playResourceId  The resourceId or 0
-     * @param pauseResourceId The resourceId or 0
+     * @param playDrawable The drawable to represent play
+     * @param pauseDrawable The drawable to represent pause
      */
-    public void setPlayPauseImages(@DrawableRes int playResourceId, @DrawableRes int pauseResourceId) {
-        this.playResourceId = playResourceId;
-        this.pauseResourceId = pauseResourceId;
+    public void setPlayPauseDrawables(Drawable playDrawable, Drawable pauseDrawable) {
+        this.playDrawable = playDrawable;
+        this.pauseDrawable = pauseDrawable;
 
         updatePlayPauseImage(videoView != null && videoView.isPlaying());
     }
 
     /**
-     * Sets the state list drawable resource id to use for the Previous button.
+     * Sets the drawable for the previous button
      *
-     * @param resourceId The resourceId or 0
+     * @param drawable The drawable to use
      */
-    public void setPreviousImageResource(@DrawableRes int resourceId) {
-        if (resourceId != 0) {
-            previousButton.setImageResource(resourceId);
-        } else {
-            previousButton.setImageDrawable(defaultPreviousDrawable);
-        }
+    public void setPreviousDrawable(Drawable drawable) {
+        previousButton.setImageDrawable(drawable);
     }
 
     /**
-     * Sets the state list drawable resource id to use for the Next button.
+     * Sets the drawable for the next button
      *
-     * @param resourceId The resourceId or 0
+     * @param drawable The drawable to use
      */
-    public void setNextImageResource(@DrawableRes int resourceId) {
-        if (resourceId != 0) {
-            nextButton.setImageResource(resourceId);
-        } else {
-            nextButton.setImageDrawable(defaultNextDrawable);
-        }
+    public void setNextDrawable(Drawable drawable) {
+        nextButton.setImageDrawable(drawable);
     }
 
     /**
-     * Sets the state list drawable resource id to use for the Rewind button.
-     * <b><em>NOTE:</em></b> The Rewind button is only shown on TV layouts
+     * Sets the drawable for the rewind button
      *
-     * @param resourceId The resourceId or 0
+     * @param drawable The drawable to use
      */
-    public void setRewindImageResource(@DrawableRes int resourceId) {
-        //Purposefully left blank
+    public void setRewindDrawable(Drawable drawable) {
+        //Purposefully let blank
     }
 
     /**
-     * Sets the state list drawable resource id to use for the Fast Forward button.
-     * <b><em>NOTE:</em></b> The Fast Forward button is only shown on TV layouts
+     * Sets the drawable for the Fast  button
      *
-     * @param resourceId The resourceId or 0
+     * @param drawable The drawable to use
      */
-    public void setFastForwardImageResource(@DrawableRes int resourceId) {
-        //Purposefully left blank
+    public void setFastForwardDrawable(Drawable drawable) {
+        //Purposefully let blank
     }
 
     /**
@@ -335,24 +345,12 @@ public abstract class VideoControls extends RelativeLayout {
      * @param isPlaying If the video is currently playing
      */
     public void updatePlayPauseImage(boolean isPlaying) {
-        if (isPlaying) {
-            if (pauseResourceId != INVALID_RESOURCE_ID) {
-                playPauseButton.setImageResource(pauseResourceId);
-            } else {
-                playPauseButton.setImageDrawable(defaultPauseDrawable);
-            }
-        } else {
-            if (playResourceId != INVALID_RESOURCE_ID) {
-                playPauseButton.setImageResource(playResourceId);
-            } else {
-                playPauseButton.setImageDrawable(defaultPlayDrawable);
-            }
-        }
+        playPauseButton.setImageDrawable(isPlaying ? pauseDrawable : playDrawable);
     }
 
     /**
      * Sets the button state for the Previous button.  This will just
-     * change the images specified with {@link #setPreviousImageResource(int)},
+     * change the images specified with {@link #setPreviousDrawable(Drawable)},
      * or use the defaults if they haven't been set, and block any click events.
      * <p>
      * This method will NOT re-add buttons that have previously been removed with
@@ -362,11 +360,12 @@ public abstract class VideoControls extends RelativeLayout {
      */
     public void setPreviousButtonEnabled(boolean enabled) {
         previousButton.setEnabled(enabled);
+        enabledViews.put(R.id.exomedia_controls_previous_btn, enabled);
     }
 
     /**
      * Sets the button state for the Next button.  This will just
-     * change the images specified with {@link #setNextImageResource(int)},
+     * change the images specified with {@link #setNextDrawable(Drawable)},
      * or use the defaults if they haven't been set, and block any click events.
      * <p>
      * This method will NOT re-add buttons that have previously been removed with
@@ -376,11 +375,12 @@ public abstract class VideoControls extends RelativeLayout {
      */
     public void setNextButtonEnabled(boolean enabled) {
         nextButton.setEnabled(enabled);
+        enabledViews.put(R.id.exomedia_controls_next_btn, enabled);
     }
 
     /**
      * Sets the button state for the Rewind button.  This will just
-     * change the images specified with {@link #setRewindImageResource(int)},
+     * change the images specified with {@link #setRewindDrawable(Drawable)},
      * or use the defaults if they haven't been set
      * <p>
      * This method will NOT re-add buttons that have previously been removed with
@@ -394,7 +394,7 @@ public abstract class VideoControls extends RelativeLayout {
 
     /**
      * Sets the button state for the Fast Forward button.  This will just
-     * change the images specified with {@link #setFastForwardImageResource(int)},
+     * change the images specified with {@link #setFastForwardDrawable(Drawable)},
      * or use the defaults if they haven't been set
      * <p>
      * This method will NOT re-add buttons that have previously been removed with
@@ -471,6 +471,29 @@ public abstract class VideoControls extends RelativeLayout {
     }
 
     /**
+     * Immediately starts the animation to hide the controls
+     */
+    public void hide() {
+        if (!canViewHide || isLoading) {
+            return;
+        }
+
+        //Makes sure we don't have a separate hide animation scheduled
+        visibilityHandler.removeCallbacksAndMessages(null);
+        clearAnimation();
+
+        animateVisibility(false);
+    }
+
+    /**
+     * After the specified delay the view will be hidden.  If the user is interacting
+     * with the controls then we wait until after they are done to start the delay.
+     */
+    public void hideDelayed() {
+        hideDelayed(hideDelay);
+    }
+
+    /**
      * After the specified delay the view will be hidden.  If the user is interacting
      * with the controls then we wait until after they are done to start the delay.
      *
@@ -486,9 +509,19 @@ public abstract class VideoControls extends RelativeLayout {
         visibilityHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                animateVisibility(false);
+                hide();
             }
         }, delay);
+    }
+
+    /**
+     * Sets the delay to use when hiding the controls via the {@link #hideDelayed()}
+     * method. This value will be overridden if {@link #hideDelayed(long)} is called.
+     *
+     * @param delay The delay in milliseconds to wait to start the hide animation
+     */
+    public void setHideDelay(long delay) {
+        hideDelay = delay;
     }
 
     /**
@@ -512,21 +545,30 @@ public abstract class VideoControls extends RelativeLayout {
     }
 
     /**
+     * Returns <code>true</code> if the {@link VideoControls} are visible
+     *
+     * @return <code>true</code> if the controls are visible
+     */
+    public boolean isVisible() {
+        return isVisible;
+    }
+
+    /**
      * Retrieves the view references from the xml layout
      */
     protected void retrieveViews() {
-        currentTime = (TextView) findViewById(R.id.exomedia_controls_current_time);
-        endTime = (TextView) findViewById(R.id.exomedia_controls_end_time);
+        currentTimeTextView = (TextView) findViewById(R.id.exomedia_controls_current_time);
+        endTimeTextView = (TextView) findViewById(R.id.exomedia_controls_end_time);
 
-        titleView = (TextView) findViewById(R.id.exomedia_controls_title);
-        subTitleView = (TextView) findViewById(R.id.exomedia_controls_sub_title);
-        descriptionView = (TextView) findViewById(R.id.exomedia_controls_description);
+        titleTextView = (TextView) findViewById(R.id.exomedia_controls_title);
+        subTitleTextView = (TextView) findViewById(R.id.exomedia_controls_sub_title);
+        descriptionTextView = (TextView) findViewById(R.id.exomedia_controls_description);
 
         playPauseButton = (ImageButton) findViewById(R.id.exomedia_controls_play_pause_btn);
         previousButton = (ImageButton) findViewById(R.id.exomedia_controls_previous_btn);
         nextButton = (ImageButton) findViewById(R.id.exomedia_controls_next_btn);
 
-        loadingProgress = (ProgressBar) findViewById(R.id.exomedia_controls_video_loading);
+        loadingProgressBar = (ProgressBar) findViewById(R.id.exomedia_controls_video_loading);
 
         controlsContainer = (ViewGroup) findViewById(R.id.exomedia_controls_interactive_container);
         textContainer = (ViewGroup) findViewById(R.id.exomedia_controls_text_container);
@@ -561,16 +603,15 @@ public abstract class VideoControls extends RelativeLayout {
      * Updates the drawables used for the buttons to AppCompatTintDrawables
      */
     protected void updateButtonDrawables() {
-        defaultPlayDrawable = EMResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_play_arrow_white, R.color.exomedia_default_controls_button_selector);
+        playDrawable = ResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_play_arrow_white, R.color.exomedia_default_controls_button_selector);
+        pauseDrawable = ResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_pause_white, R.color.exomedia_default_controls_button_selector);
+        playPauseButton.setImageDrawable(playDrawable);
 
-        defaultPauseDrawable = EMResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_pause_white, R.color.exomedia_default_controls_button_selector);
-        playPauseButton.setImageDrawable(defaultPlayDrawable);
+        Drawable previousDrawable = ResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_skip_previous_white, R.color.exomedia_default_controls_button_selector);
+        previousButton.setImageDrawable(previousDrawable);
 
-        defaultPreviousDrawable = EMResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_skip_previous_white, R.color.exomedia_default_controls_button_selector);
-        previousButton.setImageDrawable(defaultPreviousDrawable);
-
-        defaultNextDrawable = EMResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_skip_next_white, R.color.exomedia_default_controls_button_selector);
-        nextButton.setImageDrawable(defaultNextDrawable);
+        Drawable nextDrawable = ResourceUtil.tintList(getContext(), R.drawable.exomedia_ic_skip_next_white, R.color.exomedia_default_controls_button_selector);
+        nextButton.setImageDrawable(nextDrawable);
     }
 
     /**
@@ -616,14 +657,6 @@ public abstract class VideoControls extends RelativeLayout {
 
         registerListeners();
         updateButtonDrawables();
-
-        //A poll used to periodically update the progress bar
-        progressPollRepeater.setRepeatListener(new Repeater.RepeatListener() {
-            @Override
-            public void onRepeat() {
-                updateProgress();
-            }
-        });
     }
 
     /**
@@ -632,15 +665,15 @@ public abstract class VideoControls extends RelativeLayout {
      */
     @SuppressWarnings("RedundantIfStatement")
     protected boolean isTextContainerEmpty() {
-        if (titleView.getText() != null && titleView.getText().length() > 0) {
+        if (titleTextView.getText() != null && titleTextView.getText().length() > 0) {
             return false;
         }
 
-        if (subTitleView.getText() != null && subTitleView.getText().length() > 0) {
+        if (subTitleTextView.getText() != null && subTitleTextView.getText().length() > 0) {
             return false;
         }
 
-        if (descriptionView.getText() != null && descriptionView.getText().length() > 0) {
+        if (descriptionTextView.getText() != null && descriptionTextView.getText().length() > 0) {
             return false;
         }
 
@@ -735,7 +768,7 @@ public abstract class VideoControls extends RelativeLayout {
         }
 
         @Override
-        public boolean onSeekEnded(int seekTime) {
+        public boolean onSeekEnded(long seekTime) {
             if (videoView == null) {
                 return false;
             }
@@ -745,7 +778,7 @@ public abstract class VideoControls extends RelativeLayout {
             if (pausedForSeek) {
                 pausedForSeek = false;
                 videoView.start();
-                hideDelayed(hideDelay);
+                hideDelayed();
             }
 
             return true;

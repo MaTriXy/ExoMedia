@@ -47,7 +47,7 @@ import javax.microedition.khronos.egl.EGLSurface;
  * A TextureView that reSizes itself according to the requested layout type
  * once we have a video
  */
-public class ResizingTextureView extends TextureView {
+public class ResizingTextureView extends TextureView implements ClearableSurface {
     private static final String TAG = "ResizingTextureView";
     protected static final int MAX_DEGREES = 360;
 
@@ -220,6 +220,7 @@ public class ResizingTextureView extends TextureView {
      * the implementing video view has finished playback or otherwise released
      * the surface
      */
+    @Override
     public void clearSurface() {
         if (getSurfaceTexture() == null) {
             return;
@@ -364,6 +365,8 @@ public class ResizingTextureView extends TextureView {
 
         lastNotifiedSize.x = width;
         lastNotifiedSize.y = height;
+
+        updateMatrixOnLayout();
 
         if (onSizeChangeListener != null) {
             onSizeChangeListener.onVideoSurfaceSizeChange(width, height);
