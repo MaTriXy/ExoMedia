@@ -1,78 +1,80 @@
+![Maven Central](https://img.shields.io/maven-central/v/com.devbrackets.android/exomedia)
+
 ExoMedia
 ============
-[//]: # (SEO terms: Simple ExoPlayer, ExoPlayer TextureView, ExoPlayer SurfaceView, ExoPlayer VideoView, ExoPlayer Audio)
-ExoMedia is a media playback library with similar APIs to the Android MediaPlayer
-and VideoView that uses the [ExoPlayer][ExoPlayer] as a backing when possible, 
-otherwise the default Android MediaPlayer and VideoView are used.
+ExoMedia is an audio/video playback library for Android built on top of the ExoPlayer
+with straightforward APIs and integrations. This library focuses on quick setup, handling 
+common audio and video playback needs while also providing extensibility for more custom
+use cases.
 
-The [ExoPlayer][ExoPlayer] is only supported on devices that pass the [compatibility Test Suite][CTS]
-and that are JellyBean (API 16) or greater.  The [ExoPlayer][ExoPlayer] provides 
-additional support for streaming (HLS, DASH, etc.) and full HD (1080p +) 
+ExoMedia vs ExoPlayer
+------
+The [ExoPlayer][ExoPlayer] is an advanced media player for Android that is highly customizable,
+however that comes at the cost of a more complex setup and configuration process. This customizability
+is great when it's needed however can be daunting when you need to play a simple audio or video file.
 
-Website And Documentation
---------
-The ExoMedia website can be found [here][Website]  
-The ExoMedia documentation website can be found on the website linked above or [here][Java Docs]
+ExoMedia is a more high-level abstraction of media playback that abstracts some of the customizability 
+provided by the [ExoPlayer][ExoPlayer] into simple functions and callbacks, keeping the required 
+configuration to a minimum. 
+
 
 Use
 -------
-The latest AAR (Android Archive) files can be downloaded from [JCenter][JCenter]  
-Or included in your gradle dependencies
+The latest version can be found at [Maven Central][MavenCentral].
 
 ```gradle
 repositories {
-    jcenter()
+  mavenCentral()
 }
 
 dependencies {
-    compile 'com.devbrackets.android:exomedia:4.1.0'
+  implementation 'com.devbrackets.android:exomedia:5.2.0'
 }
 ```
 
-Example
+
+Quick Start
 -------
 The ExoMedia VideoView can be added in your layout files like any other Android view.
 
 ```xml
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+<RelativeLayout 
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
 
 	<com.devbrackets.android.exomedia.ui.widget.VideoView
 		android:id="@+id/video_view"
 		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		app:useDefaultControls="true"/>
-		
+		android:layout_height="match_parent" />
 </RelativeLayout>
 ```
 
 While in your Activity or Fragment you treat it like a standard Android VideoView
 
-```java
-private VideoView videoView;
+```kotlin
+private lateinit var videoView: VideoView
 
-private void setupVideoView() {
-	// Make sure to use the correct VideoView import
-	videoView = (VideoView)findViewById(R.id.video_view);
-	videoView.setOnPreparedListener(this);
+private fun setupVideoView() {
+  // Make sure to use the correct VideoView import
+  videoView = findViewById(R.id.video_view) as VideoView
+  videoView.setOnPreparedListener(this)
 
-    //For now we just picked an arbitrary item to play
-    videoView.setVideoURI(Uri.parse("https://archive.org/download/Popeye_forPresident/Popeye_forPresident_512kb.mp4"));
+  // For now we just picked an arbitrary item to play
+  videoView.setMedia(Uri.parse("https://www.devbrackets.com/media/samples/video/big_buck_bunny.mp4"))
 }
 
 @Override
-public void onPrepared() {
-	//Starts the video playback as soon as it is ready
-	videoView.start();
+fun onPrepared() {
+  //Starts the video playback as soon as it is ready
+  videoView.start()
 }
 ```
 
 
 License
 -------
-    Copyright 2015-2017 Brian Wernick
+    Copyright 2015-2024 ExoMedia Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -89,14 +91,14 @@ License
 
 Attribution
 -----------
-* Uses [AppCompat-v7](http://developer.android.com/tools/support-library/features.html#v7-appcompat) licensed under [Apache 2.0][Apache 2.0]
-* Uses [ExoPlayer][ExoPlayer] licensed under [Apache 2.0][Apache 2.0]
+* Uses [Kotlin](https://kotlinlang.org/) licensed under [Apache 2.0][Apache 2.0] 
+* Uses [AndroidX Media3](https://developer.android.com/jetpack/androidx/releases/media3) licensed under [Apache 2.0][Apache 2.0]
+* Uses [ConstraintLayout](https://developer.android.com/training/constraint-layout) licensed under [Apache 2.0][Apache 2.0]
+* Uses [AndroidX AppCompat](https://developer.android.com/jetpack/androidx/releases/appcompat) licensed under [Apache 2.0][Apache 2.0]
 * Uses [Material Design icons][Design Icons] licensed under [Apache 2.0][Apache 2.0]
 
  [Apache 2.0]: http://www.apache.org/licenses/LICENSE-2.0
  [CTS]: https://source.android.com/compatibility/cts/index.html
  [Design Icons]: https://github.com/google/material-design-icons
- [ExoPlayer]: https://github.com/google/ExoPlayer
- [Java Docs]: https://devbrackets.com/dev/libs/docs/exomedia/4.0.0/index.html
- [JCenter]: https://bintray.com/brianwernick/maven/ExoMedia/view#files
- [Website]: https://devbrackets.com/dev/libs/exomedia.html
+ [ExoPlayer]: https://github.com/androidx/media
+ [MavenCentral]: https://search.maven.org/artifact/com.devbrackets.android/exomedia

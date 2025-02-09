@@ -1,32 +1,86 @@
-apply plugin: 'com.android.application'
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+  alias libs.plugins.android.application
+  alias libs.plugins.kotlin.android
+  alias libs.plugins.compose.compiler
+}
 
 dependencies {
-    compile project(':library')
-    compile "com.android.support:appcompat-v7:$rootProject.ext.supportLibVersion"
-    compile "com.google.android.exoplayer:extension-okhttp:$rootProject.ext.exoPlayerVersion"
+  implementation project(':library')
 
-    // Image Loading
-    compile 'com.github.bumptech.glide:glide:3.8.0'
+  // ExoPlayer
+  implementation libs.media3.ui // Subtitles
+  implementation libs.media3.datasource.okhttp // Custom HTTP
 
-    // Playlist support
-    compile 'com.devbrackets.android:playlistcore:2.0.0'
+  // Misc
+  implementation libs.core.ktx
+  implementation libs.appcompat
+  implementation libs.media
+  implementation libs.constraintlayout
 
-    // Memory Leak diagnostics
-    compile 'com.squareup.leakcanary:leakcanary-android:1.5.4'
+  // Jetpack Compose UI
+  implementation libs.ui
+  implementation libs.ui.tooling
+  implementation libs.ui.tooling.preview
+  implementation libs.compose.material3
+  implementation libs.compose.icons.core
+  implementation libs.compose.icons.extended
+  implementation libs.activity.compose
+  implementation libs.navigation.compose
+
+
+  // Image Loading
+  implementation libs.glide
+  annotationProcessor libs.compiler
+  implementation libs.coil.compose
+  implementation libs.coil.network
+
+
+  // Playlist support
+  implementation libs.playlistcore
+
+  // Memory Leak diagnostics
+//  debugImplementation libs.leakcanary.android
 }
 
 android {
-    compileSdkVersion 27
+  namespace 'com.devbrackets.android.exomediademo'
+  compileSdk 35
 
-    defaultConfig {
-        applicationId "com.devbrackets.android.exomediademo"
-        minSdkVersion 16
-        targetSdkVersion 27
-        versionCode 1
-        versionName "1.0.0"
-    }
+  defaultConfig {
+    applicationId "com.devbrackets.android.exomediademo"
+    minSdkVersion 21
+    targetSdkVersion 35
+    versionCode 1
+    versionName "1.0.0"
+  }
 
-    lintOptions {
-        abortOnError false
-    }
+  sourceSets {
+    main.java.srcDirs += "src/main/kotlin"
+  }
+
+  buildFeatures {
+    compose true
+    viewBinding true
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
+  }
+
+  kotlinOptions {
+    jvmTarget = JavaVersion.VERSION_11
+  }
+
+  lint {
+    abortOnError false
+  }
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(JvmTarget.JVM_11)
+  }
 }
